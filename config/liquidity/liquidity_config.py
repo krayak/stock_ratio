@@ -1,0 +1,33 @@
+INDUSTRY_CURRENT_RATIO_BENCHMARK = {
+    "Technology": 2.0,
+    "Healthcare": 1.8,
+    "Finance": 1.5,
+    "Consumer Discretionary": 1.6,
+    "Energy": 1.2,
+    "Materials": 1.3,
+    "Utilities": 1.2,
+    "Communication Services": 1.8,
+    "Real Estate": 1.5,
+    "Industrials": 1.4,
+    "Automobile": 1.3,
+    "Consumer Staples": 1.6,
+    "Pharmaceuticals": 2.0,
+    "IT Services": 2.5,
+}
+
+INDUSTRY_QUICK_RATIO_BENCHMARK = {
+    "Technology": 1.8,
+    "Healthcare": 1.5,
+    "Finance": 1.3,
+    "Consumer Discretionary": 1.4,
+    "Energy": 1.0,
+    "Materials": 1.1,
+    "Utilities": 1.0,
+    "Communication Services": 1.6,
+    "Real Estate": 1.2,
+    "Industrials": 1.2,
+    "Automobile": 1.1,
+    "Consumer Staples": 1.4,
+    "Pharmaceuticals": 1.8,
+    "IT Services": 2.2,
+}

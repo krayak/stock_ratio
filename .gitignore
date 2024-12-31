@@ -1,0 +1,5 @@
+stock_ratios.egg-info
+stock_ratios.egg-info/*
+__pycache__/
+*.pyc
+*.pyo

@@ -1,0 +1,33 @@
+INDUSTRY_DEBT_TO_EQUITY_RATIO_BENCHMARK = {
+    "Technology": 0.3,
+    "Healthcare": 0.5,
+    "Finance": 5.0,
+    "Consumer Discretionary": 0.8,
+    "Energy": 1.2,
+    "Materials": 1.0,
+    "Utilities": 1.5,
+    "Communication Services": 0.6,
+    "Real Estate": 1.8,
+    "Industrials": 1.0,
+    "Automobile": 0.9,
+    "Consumer Staples": 0.6,
+    "Pharmaceuticals": 0.4,
+    "IT Services": 0.2,
+}
+
+INDUSTRY_INTEREST_COVERAGE_RATIO_BENCHMARK = {
+    "Technology": 15.0,
+    "Healthcare": 8.0,
+    "Finance": 2.0,
+    "Consumer Discretionary": 5.0,
+    "Energy": 3.0,
+    "Materials": 4.0,
+    "Utilities": 2.5,
+    "Communication Services": 6.0,
+    "Real Estate": 2.0,
+    "Industrials": 4.0,
+    "Automobile": 3.5,
+    "Consumer Staples": 6.0,
+    "Pharmaceuticals": 10.0,
+    "IT Services": 20.0,
+}
