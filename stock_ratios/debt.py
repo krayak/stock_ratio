@@ -1,7 +1,13 @@
 import yfinance as yf
-from utils.debt_helper import (
-    get_industry_debt_to_equity_benchmark,
-    get_industry_interest_coverage_benchmark,
+import math
+from config.debt.debt_config import (
+    INDUSTRY_DEBT_TO_EQUITY_RATIO_BENCHMARK,
+    INDUSTRY_INTEREST_COVERAGE_RATIO_BENCHMARK,
+    DEFAULT_DEBT_TO_EQUITY_RATIO_BENCHMARK,
+    DEFAULT_INTEREST_COVERAGE_RATIO_BENCHMARK
+)
+from utils.benchmark import (
+    get_industry_benchmark
 )
 
 
@@ -14,31 +20,72 @@ class DebtRatios:
         self.stock = yf.Ticker(ticker)
         self.info = self.stock.info
         self.balance_sheet = self.stock.balance_sheet
+        # print(f"Balance Sheet Keys for {ticker}: {self.balance_sheet.index.tolist()}")
         self.financials = self.stock.financials
 
-    def _get_benchmark(self, ratio_name):
-        """
-        Fetch the industry benchmark for a given ratio.
-        """
-        benchmark_functions = {
-            "Debt-to-Equity Ratio": get_industry_debt_to_equity_benchmark,
-            "Interest Coverage Ratio": get_industry_interest_coverage_benchmark,
-        }
-        sector = self.info.get("sector")
-        benchmark_function = benchmark_functions.get(ratio_name)
-
-        if benchmark_function and sector:
-            return benchmark_function(sector)
-        return None
-
-    def _get_latest_financial_value(self, statement, key):
-        """
-        Utility function to fetch the latest financial value for a given key.
-        """
+    def _get_recommendation_by_range(self, value, benchmark_range, buy_if_below=True):
+        if value is None or benchmark_range is None:
+            return "Data Unavailable"
         try:
-            return statement.loc[key][0]
-        except KeyError:
+            lower_bound, upper_bound = benchmark_range
+        except TypeError: #Handle the case where benchmark_range is not a tuple
+            return "Data Unavailable"
+
+        if buy_if_below:
+            if value < lower_bound:
+                return "Buy"
+            elif value > upper_bound:
+                return "Sell"
+            else:
+                return "Hold"
+        else:
+            if value > upper_bound:
+                return "Buy"
+            elif value < lower_bound:
+                return "Sell"
+            else:
+                return "Hold"
+
+    def _compare_to_benchmark(self, value, benchmark_range):
+        if value is None or benchmark_range is None:
+            return "Data Unavailable"
+        try:
+            lower_bound, upper_bound = benchmark_range
+        except TypeError:
+            return "Data Unavailable"
+
+        if value > upper_bound:
+            return "Above Benchmark"
+        elif value < lower_bound:
+            return "Below Benchmark"
+        else:
+            return "Within Benchmark"
+        
+    def _get_benchmark(self, ratio_type):
+        sector = self.info.get("sector")
+        industry = self.info.get("industry")
+        if ratio_type == "Debt-to-Equity Ratio":
+            return get_industry_benchmark(sector, industry, INDUSTRY_DEBT_TO_EQUITY_RATIO_BENCHMARK, DEFAULT_DEBT_TO_EQUITY_RATIO_BENCHMARK)
+        elif ratio_type == "Interest Coverage Ratio":
+            return get_industry_benchmark(sector, industry, INDUSTRY_INTEREST_COVERAGE_RATIO_BENCHMARK, DEFAULT_INTEREST_COVERAGE_RATIO_BENCHMARK)
+        else:
             return None
+
+    def _get_financial_data(self, statement, keys):
+        """
+        Generic function to get financial data given a list of possible keys.
+        """
+        if statement is None or statement.empty:
+            return None
+        for key in keys:
+            try:
+                value = statement.loc[key].iloc[0]
+                if not (isinstance(value, (int, float)) and not math.isnan(value)):
+                    continue  # Skip if value is not a valid number
+                return value
+            except KeyError:
+                continue
+        return None
 
     def _calculate_ratio(self, numerator, denominator):
         """
@@ -48,36 +95,40 @@ class DebtRatios:
             return None
         return numerator / denominator
 
-    def _get_recommendation(self, ratio, benchmark, comparison_type="higher"):
-        """
-        Generate a recommendation based on the comparison of the ratio to the industry benchmark.
-        """
-        if ratio is None or benchmark is None:
-            return "Data Unavailable"
-        elif comparison_type == "higher" and ratio > benchmark:
-            return "Above Benchmark - Positive"
-        elif comparison_type == "lower" and ratio < benchmark:
-            return "Below Benchmark - Positive"
-        elif ratio == benchmark:
-            return "At Benchmark - Neutral"
-        else:
-            return "Below Benchmark - Negative" if comparison_type == "higher" else "Above Benchmark - Negative"
-
     def get_total_debt(self):
         """Fetch the latest Total Debt."""
-        return self._get_latest_financial_value(self.balance_sheet, 'Total Debt')
+        possible_keys = ['Total Debt', 'Net Debt','totalDebt', 'Total Liabilities Net Minority Interest', 'Total Liabilities','totalLiabilities', 'Liabilities', 'Long Term Debt And Capital Lease Obligation', 'Long Term Debt', 'Current Debt And Capital Lease Obligation', 'Current Debt']
+        return self._get_financial_data(self.balance_sheet, possible_keys)
 
     def get_total_equity(self):
         """Fetch the latest Total Equity."""
-        return self._get_latest_financial_value(self.balance_sheet, 'Total Equity')
+        possible_keys = ['Total Equity Gross Minority Interest', 'Stockholders Equity', 'Common Stock Equity', 'Total Equity', 'totalEquity', "Stockholders' Equity", "stockholdersEquity", "Equity"]
+        equity = self._get_financial_data(self.balance_sheet, possible_keys)
+        if equity is None:  # Try calculating if not found directly
+            total_assets = self._get_financial_data(self.balance_sheet, ['Total Assets', 'totalAssets', 'Assets'])
+            total_liabilities = self._get_financial_data(self.balance_sheet, ['Total Liabilities Net Minority Interest','Total Liabilities', 'totalLiabilities', 'Liabilities'])
+
+            if total_assets is not None and total_liabilities is not None:
+                equity = total_assets - total_liabilities
+        return equity
 
     def get_ebit(self):
         """Fetch the latest EBIT (Earnings Before Interest and Taxes)."""
-        return self._get_latest_financial_value(self.financials, 'EBIT')
+        possible_keys = ['EBIT', 'ebit', 'Operating Income', 'operatingIncome']
+        ebit = self._get_financial_data(self.financials, possible_keys)
+        if ebit is None:
+            operating_income_keys = ['Operating Income', 'operatingIncome']
+            operating_income = self._get_financial_data(self.financials, operating_income_keys)
+            interest_expense_keys = ['Interest Expense', 'interestExpense']
+            interest_expense = self._get_financial_data(self.financials, interest_expense_keys)
+            if operating_income is not None and interest_expense is not None:
+                ebit = operating_income + interest_expense
+        return ebit
 
     def get_interest_expense(self):
         """Fetch the latest Interest Expense."""
-        return self._get_latest_financial_value(self.financials, 'Interest Expense')
+        possible_keys = ['Interest Expense', 'interestExpense', 'Interest and Debt Expense', 'interestAndDebtExpense']
+        return self._get_financial_data(self.financials, possible_keys)
 
     def calculate_debt_to_equity_ratio(self):
         """Calculate and evaluate Debt-to-Equity Ratio."""
@@ -85,24 +136,26 @@ class DebtRatios:
             total_debt = self.get_total_debt()
             total_equity = self.get_total_equity()
 
-            # Calculate Debt-to-Equity Ratio
+            if total_debt is None:
+                return {"Debt-to-Equity Ratio": None, "Industry Benchmark": None, "Comparison": "Total Debt Data Unavailable", "Recommendation": "Total Debt Data Unavailable"}
+            if total_equity is None:
+                return {"Debt-to-Equity Ratio": None, "Industry Benchmark": None, "Comparison": "Total Equity Data Unavailable", "Recommendation": "Total Equity Data Unavailable"}
+            if total_equity == 0:
+                return {"Debt-to-Equity Ratio": None, "Industry Benchmark": None, "Comparison": "Cannot calculate Debt-to-Equity Ratio, Total Equity is zero", "Recommendation": "Cannot calculate Debt-to-Equity Ratio, Total Equity is zero"}
+
             debt_to_equity_ratio = self._calculate_ratio(total_debt, total_equity)
-            debt_to_equity_benchmark = self._get_benchmark("Debt-to-Equity Ratio")
-            recommendation = self._get_recommendation(debt_to_equity_ratio, debt_to_equity_benchmark, "lower")
+            benchmark_range = self._get_benchmark("Debt-to-Equity Ratio")
+            comparison = self._compare_to_benchmark(debt_to_equity_ratio, benchmark_range)
+            recommendation = self._get_recommendation_by_range(debt_to_equity_ratio, benchmark_range, buy_if_below=True) #buy_if_below = True is important here
 
             return {
-                "Debt-to-Equity Ratio": round(debt_to_equity_ratio, 2) if debt_to_equity_ratio is not None else "N/A",
-                "Industry Benchmark": round(debt_to_equity_benchmark, 2) if debt_to_equity_benchmark else "N/A",
-                "Comparison": (
-                    "Above Benchmark" if debt_to_equity_ratio is not None and debt_to_equity_ratio > debt_to_equity_benchmark else
-                    "Below Benchmark" if debt_to_equity_ratio is not None and debt_to_equity_ratio < debt_to_equity_benchmark else
-                    "At Benchmark" if debt_to_equity_ratio is not None and debt_to_equity_ratio == debt_to_equity_benchmark else
-                    "Benchmark Unavailable"
-                ),
+                "Debt-to-Equity Ratio": round(debt_to_equity_ratio, 2) if debt_to_equity_ratio is not None else None,
+                "Industry Benchmark": benchmark_range,
+                "Comparison": comparison,
                 "Recommendation": recommendation
             }
         except Exception as e:
-            return {"error": f"Error calculating Debt-to-Equity Ratio: {str(e)}"}
+            return {"Debt-to-Equity Ratio": None, "Industry Benchmark": None, "Comparison": f"Error calculating Debt-to-Equity Ratio: {str(e)}", "Recommendation": f"Error calculating Debt-to-Equity Ratio: {str(e)}"}
 
     def calculate_interest_coverage_ratio(self):
         """Calculate and evaluate Interest Coverage Ratio."""
@@ -110,24 +163,26 @@ class DebtRatios:
             ebit = self.get_ebit()
             interest_expense = self.get_interest_expense()
 
-            # Calculate Interest Coverage Ratio
+            if ebit is None:
+                return {"Interest Coverage Ratio": None, "Industry Benchmark": None, "Comparison": "EBIT Data Unavailable", "Recommendation": "EBIT Data Unavailable"}
+            if interest_expense is None:
+                return {"Interest Coverage Ratio": None, "Industry Benchmark": None, "Comparison": "Interest Expense Data Unavailable", "Recommendation": "Interest Expense Data Unavailable"}
+            if interest_expense == 0:
+                return {"Interest Coverage Ratio": None, "Industry Benchmark": None, "Comparison": "Cannot calculate Interest Coverage Ratio, Interest Expense is zero", "Recommendation": "Cannot calculate Interest Coverage Ratio, Interest Expense is zero"}
+
             interest_coverage_ratio = self._calculate_ratio(ebit, interest_expense)
-            interest_coverage_benchmark = self._get_benchmark("Interest Coverage Ratio")
-            recommendation = self._get_recommendation(interest_coverage_ratio, interest_coverage_benchmark, "higher")
+            benchmark_range = self._get_benchmark("Interest Coverage Ratio")
+            comparison = self._compare_to_benchmark(interest_coverage_ratio, benchmark_range)
+            recommendation = self._get_recommendation_by_range(interest_coverage_ratio, benchmark_range, buy_if_below=False) #buy_if_below=False is important here
 
             return {
-                "Interest Coverage Ratio": round(interest_coverage_ratio, 2) if interest_coverage_ratio is not None else "N/A",
-                "Industry Benchmark": round(interest_coverage_benchmark, 2) if interest_coverage_benchmark else "N/A",
-                "Comparison": (
-                    "Above Benchmark" if interest_coverage_ratio is not None and interest_coverage_ratio > interest_coverage_benchmark else
-                    "Below Benchmark" if interest_coverage_ratio is not None and interest_coverage_ratio < interest_coverage_benchmark else
-                    "At Benchmark" if interest_coverage_ratio is not None and interest_coverage_ratio == interest_coverage_benchmark else
-                    "Benchmark Unavailable"
-                ),
+                "Interest Coverage Ratio": round(interest_coverage_ratio, 2) if interest_coverage_ratio is not None else None,
+                "Industry Benchmark": benchmark_range,
+                "Comparison": comparison,
                 "Recommendation": recommendation
             }
         except Exception as e:
-            return {"error": f"Error calculating Interest Coverage Ratio: {str(e)}"}
+            return {"Interest Coverage Ratio": None, "Industry Benchmark": None, "Comparison": f"Error calculating Interest Coverage Ratio: {str(e)}", "Recommendation": f"Error calculating Interest Coverage Ratio: {str(e)}"}
 
     def fetch_all_ratios(self):
         """Fetch and return all debt ratios with benchmarks and recommendations."""

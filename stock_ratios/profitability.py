@@ -1,15 +1,20 @@
-import logging
-
-logging.basicConfig(level=logging.INFO)
-
 import yfinance as yf
-from utils.profitability_helper import (
-    get_industry_roa_benchmark,
-    get_industry_roe_benchmark,
-    get_industry_net_profit_margin_benchmark,
-    get_industry_gross_profit_margin_benchmark
+import math
+from config.profit.profitability_config import (
+    INDUSTRY_ROA_BENCHMARK,
+    INDUSTRY_ROE_BENCHMARK,
+    INDUSTRY_PROFIT_MARGIN_BENCHMARK,
+    INDUSTRY_GROSS_PROFIT_MARGIN_BENCHMARK,
+    INDUSTRY_OPERATING_PROFIT_MARGIN_BENCHMARK,
+    DEFAULT_ROA_BENCHMARK,
+    DEFAULT_ROE_BENCHMARK,
+    DEFAULT_PROFIT_MARGIN_BENCHMARK,
+    DEFAULT_GROSS_PROFIT_MARGIN_BENCHMARK,
+    DEFAULT_OPERATING_PROFIT_MARGIN_BENCHMARK
 )
-
+from utils.benchmark import (
+    get_industry_benchmark
+)
 
 class ProfitabilityRatios:
     def __init__(self, ticker):
@@ -21,78 +26,109 @@ class ProfitabilityRatios:
         self.info = self.stock.info
         self.income_statement = self.stock.financials
         self.balance_sheet = self.stock.balance_sheet
-
-    def _get_benchmark(self, ratio_name):
-        """
-        Fetch the industry benchmark for a given ratio.
-        """
-        benchmark_functions = {
-        "ROA": get_industry_roa_benchmark,
-        "ROE": get_industry_roe_benchmark,
-        "Net Profit Margin": get_industry_net_profit_margin_benchmark,
-        "Gross Profit Margin": get_industry_gross_profit_margin_benchmark,
-        }
-        sector = self.info.get("sector")
-        benchmark_function = benchmark_functions.get(ratio_name)
     
-        if benchmark_function and sector:
-            return benchmark_function(sector)
-        return None
-    
-    def _get_latest_financial_value(self, statement, key):
-        """
-        Utility function to fetch the latest financial value for a given key.
-        """
+    def _get_recommendation_by_range(self, value, benchmark_range, buy_if_below=True):
+        if value is None or benchmark_range is None:
+            return "Data Unavailable"
         try:
-            return statement.loc[key][0]
-        except KeyError:
-            logging.info(f"Key '{key}' not found in financial statement.")
+            lower_bound, upper_bound = benchmark_range
+        except TypeError: #Handle the case where benchmark_range is not a tuple
+            return "Data Unavailable"
+
+        if buy_if_below:
+            if value < lower_bound:
+                return "Buy"
+            elif value > upper_bound:
+                return "Sell"
+            else:
+                return "Hold"
+        else:
+            if value > upper_bound:
+                return "Buy"
+            elif value < lower_bound:
+                return "Sell"
+            else:
+                return "Hold"
+
+    def _compare_to_benchmark(self, value, benchmark_range):
+        if value is None or benchmark_range is None:
+            return "Data Unavailable"
+        try:
+            lower_bound, upper_bound = benchmark_range
+        except TypeError:
+            return "Data Unavailable"
+
+        if value > upper_bound:
+            return "Above Benchmark"
+        elif value < lower_bound:
+            return "Below Benchmark"
+        else:
+            return "Within Benchmark"
+        
+    def _get_benchmark(self, ratio_type):
+        sector = self.info.get("sector")
+        industry = self.info.get("industry")
+        if ratio_type == "ROA":
+            return get_industry_benchmark(sector, industry, INDUSTRY_ROA_BENCHMARK, DEFAULT_ROA_BENCHMARK)
+        elif ratio_type == "ROE":
+            return get_industry_benchmark(sector, industry, INDUSTRY_ROE_BENCHMARK, DEFAULT_ROE_BENCHMARK)
+        elif ratio_type == "Net Profit Margin":
+            return get_industry_benchmark(sector, industry, INDUSTRY_PROFIT_MARGIN_BENCHMARK, DEFAULT_PROFIT_MARGIN_BENCHMARK)
+        elif ratio_type == "Gross Profit Margin":
+            return get_industry_benchmark(sector, industry, INDUSTRY_GROSS_PROFIT_MARGIN_BENCHMARK, DEFAULT_GROSS_PROFIT_MARGIN_BENCHMARK)
+        elif ratio_type == "Operating Profit Margin":
+            return get_industry_benchmark(sector, industry, INDUSTRY_OPERATING_PROFIT_MARGIN_BENCHMARK, DEFAULT_OPERATING_PROFIT_MARGIN_BENCHMARK)
+        else:
+            return None
+
+    def get_net_profit(self):
+        try:
+            return self.income_statement.loc['Net Income'].iloc[0]
+        except (KeyError, IndexError):
+            return None
+        
+    def get_revenue(self):
+        try:
+            return self.income_statement.loc['Total Revenue'].iloc[0]
+        except (KeyError, IndexError):
+            return None
+
+    def get_gross_profit(self):
+        try:
+            return self.income_statement.loc['Gross Profit'].iloc[0]
+        except (KeyError, IndexError):
+            return None
+
+    def get_equity(self):
+        possible_equity_lines = [
+            "Total Stockholder Equity",
+            "Total Equity Gross Minority Interest",
+            "Stockholders Equity",  # Add other common variations
+            "Equity",
+            "Total Common Equity"
+        ]
+        # print("Balance Sheet Index:", self.balance_sheet.index) # Print the index for debugging
+
+        try:
+            for equity_line in possible_equity_lines:
+                if equity_line in self.balance_sheet.index:
+                    equity_value = self.balance_sheet.loc[equity_line].iloc[0]
+                    print(f"Using equity line: {equity_line} with value {equity_value}")
+                    return equity_value
+            return None  # No suitable equity line found
+        except (KeyError, IndexError):
+            return None
+
+    def get_total_assets(self):
+        try:
+            return self.balance_sheet.loc['Total Assets'].iloc[0]
+        except (KeyError, IndexError):
             return None
 
     def _calculate_ratio(self, numerator, denominator):
-        """
-        Utility function to calculate a ratio and handle zero or None values.
-        """
         if numerator is None or denominator is None or denominator == 0:
             return None
         return (numerator / denominator) * 100
-
-    def _get_recommendation(self, ratio, benchmark):
-        """
-        Generate a recommendation based on the comparison of the ratio to the industry benchmark.
-        """
-        if ratio is None or benchmark is None:
-            return "Data Unavailable"
-        elif ratio > benchmark:
-            return "Above Benchmark - Positive"
-        elif ratio < benchmark:
-            return "Below Benchmark - Negative"
-        else:
-            return "At Benchmark - Neutral"
-
-    def get_net_profit(self):
-        """Fetch the latest Net Income (Net Profit)."""
-        return self._get_latest_financial_value(self.income_statement, 'Net Income')
-
-    def get_revenue(self):
-        """Fetch the latest Total Revenue."""
-        return self._get_latest_financial_value(self.income_statement, 'Total Revenue')
-
-    def get_operating_income(self):
-        """Fetch the latest Operating Income (EBIT)."""
-        return self._get_latest_financial_value(self.income_statement, 'Operating Income')
-
-    def get_gross_profit(self):
-        """Fetch the latest Gross Profit."""
-        return self._get_latest_financial_value(self.income_statement, 'Gross Profit')
-
-    def get_total_assets(self):
-        """Fetch the latest Total Assets from the balance sheet."""
-        return self._get_latest_financial_value(self.balance_sheet, 'Total Assets')
-
-    def get_equity(self):
-        """Fetch the latest Shareholder Equity from the balance sheet."""
-        return self._get_latest_financial_value(self.balance_sheet, 'Total Stockholder Equity')
 
     def calculate_roa(self):
         """Calculate Return on Assets (ROA) using average total assets and provide recommendations."""
@@ -100,40 +136,35 @@ class ProfitabilityRatios:
             # Fetch Net Income and Total Assets
             net_profit = self.get_net_profit()
             total_assets_end = self.get_total_assets()  # End-of-year total assets
+            if net_profit is None or total_assets_end is None:
+                return {"ROA (%)": None, "Industry Benchmark (%)": None, "Comparison": "Data Unavailable", "Recommendation": "Data Unavailable"}
         
             # Calculate Average Total Assets if historical data is available
             total_assets_start = (
-                self.balance_sheet.loc['Total Assets'][1]
+                self.balance_sheet.loc['Total Assets'].iloc[1]
                 if len(self.balance_sheet.loc['Total Assets']) > 1
                 else total_assets_end  # Use end value if start not available
             )
 
             avg_total_assets = (total_assets_end + total_assets_start) / 2
 
-            if avg_total_assets == 0:  # Avoid division by zero
-                return {"error": "Average Total Assets is zero, cannot calculate ROA."}
+            if avg_total_assets == 0:
+                return {"ROA (%)": None, "Industry Benchmark (%)": None, "Comparison": "Cannot calculate ROA, Avg Total Assets is zero", "Recommendation": "Cannot calculate ROA, Avg Total Assets is zero"}
 
             # Calculate ROA
-            roa = (net_profit / avg_total_assets) * 100
-            roa_benchmark = self._get_benchmark("ROA")
-        
-            # Compare with benchmark and provide recommendation
-            recommendation = self._get_recommendation(roa, roa_benchmark)
+            roa = self._calculate_ratio(net_profit, avg_total_assets)
+            benchmark_range = self._get_benchmark("ROA")
+            comparison = self._compare_to_benchmark(roa, benchmark_range)
+            recommendation = self._get_recommendation_by_range(roa, benchmark_range)
 
             return {
-                "ROA (%)": round(roa, 2),
-                "Industry Benchmark (%)": round(roa_benchmark, 2) if roa_benchmark else "N/A",
-                "Comparison": (
-                    "Above Benchmark" if roa > roa_benchmark else
-                    "Below Benchmark" if roa < roa_benchmark else
-                    "At Benchmark" if roa == roa_benchmark else
-                    "Benchmark Unavailable"
-                ),
+                "ROA (%)": round(roa, 2) if roa is not None else None,
+                "Industry Benchmark (%)": benchmark_range,
+                "Comparison": comparison,
                 "Recommendation": recommendation
             }
-        except Exception as e:
-            return {"error": f"Error calculating ROA: {str(e)}"}
-
+        except (KeyError, IndexError) as e:
+            return {"ROA (%)": None, "Industry Benchmark (%)": None, "Comparison": f"Error calculating ROA: {str(e)}", "Recommendation": f"Error calculating ROA: {str(e)}"}
 
 
     def calculate_roe(self):
@@ -142,26 +173,42 @@ class ProfitabilityRatios:
             net_profit = self.get_net_profit()
             equity = self.get_equity()
 
-            if equity == 0:
-                return {"error": "Shareholder Equity is zero, cannot calculate ROE."}
+            # print("Balance Sheet:\n", self.balance_sheet)  # Debugging
+            # print("Income Statement:\n", self.income_statement)  # Debugging
+            # print(f"Net Profit: {net_profit}")
+            # print(f"Equity: {equity}")
+
+            if net_profit is None:
+                return {"ROE (%)": None, "Industry Benchmark (%)": None, "Comparison": "Net Profit Data Unavailable", "Recommendation": "Net Profit Data Unavailable"}
+            if equity is None:
+                return {"ROE (%)": None, "Industry Benchmark (%)": None, "Comparison": "Equity Data Unavailable", "Recommendation": "Equity Data Unavailable"}
+        
+            if math.isnan(net_profit) or math.isnan(equity):
+                return {"ROE (%)": None, "Industry Benchmark (%)": None, "Comparison": "Net Profit or Equity is NaN", "Recommendation": "Net Profit or Equity is NaN"}
+
+            try:
+                net_profit = float(net_profit)
+                equity = float(equity)
+            except (ValueError, TypeError):
+                return {"ROE (%)": None, "Industry Benchmark (%)": None, "Comparison": "Invalid Data Type for Calculation", "Recommendation": "Invalid Data Type for Calculation"}
+        
+            if equity <= 0:  # Check for zero or negative equity
+                print("WARNING: Equity is zero or negative. ROE cannot be meaningfully calculated.")
+                return {"ROE (%)": None, "Industry Benchmark (%)": None, "Comparison": "Cannot calculate ROE, Equity is zero or negative", "Recommendation": "Cannot calculate ROE, Equity is zero or negative"}
 
             roe = self._calculate_ratio(net_profit, equity)
-            roe_benchmark = self._get_benchmark("ROE")
-            recommendation = self._get_recommendation(roe, roe_benchmark)
-        
+            benchmark_range = self._get_benchmark("ROE")
+            comparison = self._compare_to_benchmark(roe, benchmark_range)
+            recommendation = self._get_recommendation_by_range(roe, benchmark_range)
+
             return {
-                "ROE (%)": round(roe, 2) if roe is not None else "N/A",
-                "Industry Benchmark (%)": round(roe_benchmark, 2) if roe_benchmark else "N/A",
-                "Comparison": (
-                    "Above Benchmark" if roe is not None and roe_benchmark is not None and roe > roe_benchmark else
-                    "Below Benchmark" if roe is not None and roe_benchmark is not None and roe < roe_benchmark else
-                    "At Benchmark" if roe is not None and roe_benchmark is not None and roe == roe_benchmark else
-                    "Benchmark Unavailable"
-                ),
+                "ROE (%)": round(roe, 2) if roe is not None else None,
+                "Industry Benchmark (%)": benchmark_range,
+                "Comparison": comparison,
                 "Recommendation": recommendation
             }
         except Exception as e:
-            return {"error": f"Error calculating ROE: {str(e)}"}
+            return {"ROE (%)": None, "Industry Benchmark (%)": None, "Comparison": f"Error calculating ROE: {str(e)}", "Recommendation": f"Error calculating ROE: {str(e)}"}
 
     def calculate_net_profit_margin(self):
         """Calculate and evaluate Net Profit Margin (NPM)."""
@@ -169,24 +216,18 @@ class ProfitabilityRatios:
             net_profit = self.get_net_profit()
             revenue = self.get_revenue()
 
-            # Handle cases where revenue is zero or None
-            if revenue is None or revenue == 0:
-                npm = None
-            else:
-                npm = (net_profit / revenue) * 100
-
-            npm_benchmark = self._get_benchmark("Net Profit Margin")
-            recommendation = self._get_recommendation(npm, npm_benchmark)
+            if net_profit is None or revenue is None:
+                return {"Net Profit Margin (%)": None, "Industry Benchmark (%)": None, "Comparison": "Data Unavailable", "Recommendation": "Data Unavailable"}
+            
+            npm = self._calculate_ratio(net_profit, revenue)
+            benchmark_range = self._get_benchmark("Net Profit Margin")
+            comparison = self._compare_to_benchmark(npm, benchmark_range)
+            recommendation = self._get_recommendation_by_range(npm, benchmark_range)
 
             return {
-                "Net Profit Margin (%)": round(npm, 2) if npm is not None else "N/A",
-                "Industry Benchmark (%)": round(npm_benchmark, 2) if npm_benchmark else "N/A",
-                "Comparison": (
-                    "Above Benchmark" if npm is not None and npm_benchmark is not None and npm > npm_benchmark else
-                    "Below Benchmark" if npm is not None and npm_benchmark is not None and npm < npm_benchmark else
-                    "At Benchmark" if npm is not None and npm_benchmark is not None and npm == npm_benchmark else
-                    "Benchmark Unavailable"
-                ),
+                "Net Profit Margin (%)": round(npm, 2) if npm is not None else None,
+                "Industry Benchmark (%)": benchmark_range,
+                "Comparison": comparison,
                 "Recommendation": recommendation
             }
         except Exception as e:
@@ -198,40 +239,24 @@ class ProfitabilityRatios:
             gross_profit = self.get_gross_profit()
             revenue = self.get_revenue()
 
-            # Handle cases where revenue is zero or None
-            if revenue is None or revenue == 0:
-                gpm = None
-            else:
-                gpm = (gross_profit / revenue) * 100
+            if gross_profit is None or revenue is None:
+                return {"Gross Profit Margin (%)": None, "Industry Benchmark (%)": None, "Comparison": "Data Unavailable", "Recommendation": "Data Unavailable"}
 
-            gpm_benchmark = self._get_benchmark("Gross Profit Margin")
-            recommendation = self._get_recommendation(gpm, gpm_benchmark)
+            gpm = self._calculate_ratio(gross_profit, revenue)
+            benchmark_range = self._get_benchmark("Gross Profit Margin")
+
+            comparison = self._compare_to_benchmark(gpm, benchmark_range)
+            recommendation = self._get_recommendation_by_range(gpm, benchmark_range)
 
             return {
-                "Gross Profit Margin (%)": round(gpm, 2) if gpm is not None else "N/A",
-                "Industry Benchmark (%)": round(gpm_benchmark, 2) if gpm_benchmark else "N/A",
-                "Comparison": (
-                    "Above Benchmark" if gpm is not None and gpm_benchmark is not None and gpm > gpm_benchmark else
-                    "Below Benchmark" if gpm is not None and gpm_benchmark is not None and gpm < gpm_benchmark else
-                    "At Benchmark" if gpm is not None and gpm_benchmark is not None and gpm == gpm_benchmark else
-                    "Benchmark Unavailable"
-                ),
+                "Gross Profit Margin (%)": round(gpm, 2) if gpm is not None else None,
+                "Industry Benchmark (%)": benchmark_range,
+                "Comparison": comparison,
                 "Recommendation": recommendation
             }
-        except Exception as e:
-            return {"error": f"Error calculating Gross Profit Margin: {str(e)}"}
+        except (KeyError, IndexError, ZeroDivisionError) as e: #Added ZeroDivisionError
+            return {"Gross Profit Margin (%)": None, "Industry Benchmark (%)": None, "Comparison": f"Error calculating Gross Profit Margin: {str(e)}", "Recommendation": f"Error calculating Gross Profit Margin: {str(e)}"}
 
-    # def calculate_net_profit_margin(self):
-    #     """Calculate Net Profit Margin (NPM)."""
-    #     return self._calculate_ratio(self.get_net_profit(), self.get_revenue())
-
-    # def calculate_operating_profit_margin(self):
-    #     """Calculate Operating Profit Margin (OPM)."""
-    #     return self._calculate_ratio(self.get_operating_income(), self.get_revenue())
-
-    # def calculate_gross_profit_margin(self):
-    #     """Calculate Gross Profit Margin (GPM)."""
-    #     return self._calculate_ratio(self.get_gross_profit(), self.get_revenue())
 
     def fetch_all_ratios(self):
         """Fetch and return all profitability ratios with benchmarks and recommendations."""
@@ -243,5 +268,5 @@ class ProfitabilityRatios:
         }
         results = {}
         for ratio_name, calculation_method in ratios.items():
-            results[ratio_name] = calculation_method()  # Call each calculation method
+            results[ratio_name] = calculation_method()
         return results

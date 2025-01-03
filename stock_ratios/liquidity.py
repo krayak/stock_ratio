@@ -1,7 +1,13 @@
 import yfinance as yf
-from utils.liquidity_helper import (
-    get_industry_current_ratio_benchmark,
-    get_industry_quick_ratio_benchmark
+import math
+from config.liquidity.liquidity_config import (
+    INDUSTRY_CURRENT_RATIO_BENCHMARK,
+    INDUSTRY_QUICK_RATIO_BENCHMARK,
+    DEFAULT_CURRENT_RATIO_BENCHMARK,
+    DEFAULT_QUICK_RATIO_BENCHMARK
+)
+from utils.benchmark import (
+    get_industry_benchmark
 )
 
 
@@ -14,30 +20,71 @@ class LiquidityRatios:
         self.stock = yf.Ticker(ticker)
         self.info = self.stock.info
         self.balance_sheet = self.stock.balance_sheet
+        # print(f"Balance Sheet for {ticker}:\n{self.balance_sheet}")
 
-    def _get_benchmark(self, ratio_name):
-        """
-        Fetch the industry benchmark for a given ratio.
-        """
-        benchmark_functions = {
-            "Current Ratio": get_industry_current_ratio_benchmark,
-            "Quick Ratio": get_industry_quick_ratio_benchmark,
-        }
-        sector = self.info.get("sector")
-        benchmark_function = benchmark_functions.get(ratio_name)
-    
-        if benchmark_function and sector:
-            return benchmark_function(sector)
-        return None
-
-    def _get_latest_financial_value(self, statement, key):
-        """
-        Utility function to fetch the latest financial value for a given key.
-        """
+    def _get_recommendation_by_range(self, value, benchmark_range, buy_if_below=True):
+        if value is None or benchmark_range is None:
+            return "Data Unavailable"
         try:
-            return statement.loc[key][0]
-        except KeyError:
+            lower_bound, upper_bound = benchmark_range
+        except TypeError: #Handle the case where benchmark_range is not a tuple
+            return "Data Unavailable"
+
+        if buy_if_below:
+            if value < lower_bound:
+                return "Buy"
+            elif value > upper_bound:
+                return "Sell"
+            else:
+                return "Hold"
+        else:
+            if value > upper_bound:
+                return "Buy"
+            elif value < lower_bound:
+                return "Sell"
+            else:
+                return "Hold"
+            
+    def _compare_to_benchmark(self, value, benchmark_range):
+        if value is None or benchmark_range is None:
+            return "Data Unavailable"
+        try:
+            lower_bound, upper_bound = benchmark_range
+        except TypeError:
+            return "Data Unavailable"
+
+        if value > upper_bound:
+            return "Above Benchmark"
+        elif value < lower_bound:
+            return "Below Benchmark"
+        else:
+            return "Within Benchmark"
+
+    def _get_benchmark(self, ratio_type):
+        sector = self.info.get("sector")
+        industry = self.info.get("industry")
+        if ratio_type == "Current Ratio":
+            return get_industry_benchmark(sector, industry, INDUSTRY_CURRENT_RATIO_BENCHMARK, DEFAULT_CURRENT_RATIO_BENCHMARK)
+        elif ratio_type == "Quick Ratio":
+            return get_industry_benchmark(sector, industry, INDUSTRY_QUICK_RATIO_BENCHMARK, DEFAULT_QUICK_RATIO_BENCHMARK)
+        else:
             return None
+        
+    def _get_financial_data(self, keys):
+        """
+        Generic function to get financial data given a list of possible keys.
+        """
+        if self.balance_sheet is None or self.balance_sheet.empty:
+            return None
+        for key in keys:
+            try:
+                value = self.balance_sheet.loc[key].iloc[0]
+                if not (isinstance(value, (int, float)) and not math.isnan(value)):
+                    continue # Skip if value is not a valid number
+                return value
+            except KeyError:
+                continue
+        return None
 
     def _calculate_ratio(self, numerator, denominator):
         """
@@ -47,51 +94,42 @@ class LiquidityRatios:
             return None
         return numerator / denominator
 
-    def _get_recommendation(self, ratio, benchmark):
-        """
-        Generate a recommendation based on the comparison of the ratio to the industry benchmark.
-        """
-        if ratio is None or benchmark is None:
-            return "Data Unavailable"
-        elif ratio > benchmark:
-            return "Above Benchmark - Positive"
-        elif ratio < benchmark:
-            return "Below Benchmark - Negative"
-        else:
-            return "At Benchmark - Neutral"
-
     def get_current_assets(self):
-        """Fetch the latest Current Assets."""
-        return self._get_latest_financial_value(self.balance_sheet, 'Total Current Assets')
+        possible_keys = [
+            "Total Current Assets", "Current Assets", "totalCurrentAssets", "currentAssets",
+            "Total Assets", "totalAssets", "Assets" # Fallback if only total assets are available
+        ]
+        return self._get_financial_data(possible_keys)
 
     def get_current_liabilities(self):
-        """Fetch the latest Current Liabilities."""
-        return self._get_latest_financial_value(self.balance_sheet, 'Total Current Liabilities')
+        possible_keys = [
+            "Total Current Liabilities", "Current Liabilities", "totalCurrentLiabilities", "currentLiabilities"
+        ]
+        return self._get_financial_data(possible_keys)
 
     def get_inventory(self):
-        """Fetch the latest Inventory value."""
-        return self._get_latest_financial_value(self.balance_sheet, 'Inventory')
+        possible_keys = ["Inventory", "inventory", "Inventories"]
+        return self._get_financial_data(possible_keys)
 
     def calculate_current_ratio(self):
         """Calculate and evaluate Current Ratio."""
         try:
             current_assets = self.get_current_assets()
+            if current_assets is None:
+                return {"Current Ratio": None, "Industry Benchmark": None, "Comparison": "Current Assets Data Unavailable", "Recommendation": "Current Assets Data Unavailable"} 
             current_liabilities = self.get_current_liabilities()
+            if current_liabilities is None:
+                return {"Current Ratio": None, "Industry Benchmark": None, "Comparison": "Current Liabilities Data Unavailable", "Recommendation": "Current Liabilities Data Unavailable"}
 
             # Calculate Current Ratio
             current_ratio = self._calculate_ratio(current_assets, current_liabilities)
-            current_ratio_benchmark = self._get_benchmark("Current Ratio")
-            recommendation = self._get_recommendation(current_ratio, current_ratio_benchmark)
-
+            benchmark_range = self._get_benchmark("Current Ratio")
+            comparison = self._compare_to_benchmark(current_ratio, benchmark_range)
+            recommendation = self._get_recommendation_by_range(current_ratio, benchmark_range)
             return {
-                "Current Ratio": round(current_ratio, 2) if current_ratio is not None else "N/A",
-                "Industry Benchmark": round(current_ratio_benchmark, 2) if current_ratio_benchmark else "N/A",
-                "Comparison": (
-                    "Above Benchmark" if current_ratio is not None and current_ratio > current_ratio_benchmark else
-                    "Below Benchmark" if current_ratio is not None and current_ratio < current_ratio_benchmark else
-                    "At Benchmark" if current_ratio is not None and current_ratio == current_ratio_benchmark else
-                    "Benchmark Unavailable"
-                ),
+                "Current Ratio": round(current_ratio, 2) if current_ratio is not None else None,
+                "Industry Benchmark": benchmark_range,
+                "Comparison": comparison,
                 "Recommendation": recommendation
             }
         except Exception as e:
@@ -104,25 +142,27 @@ class LiquidityRatios:
             inventory = self.get_inventory()
             current_liabilities = self.get_current_liabilities()
 
+            if current_assets is None:
+                return {"Quick Ratio": None, "Industry Benchmark": None, "Comparison": "Current Assets Data Unavailable", "Recommendation": "Current Assets Data Unavailable"}
+            if inventory is None:
+                return {"Quick Ratio": None, "Industry Benchmark": None, "Comparison": "Inventory Data Unavailable", "Recommendation": "Inventory Data Unavailable"}
+            if current_liabilities is None:
+                return {"Quick Ratio": None, "Industry Benchmark": None, "Comparison": "Current Liabilities Data Unavailable", "Recommendation": "Current Liabilities Data Unavailable"}
+
             # Calculate Quick Assets (Current Assets - Inventory)
             quick_assets = None if current_assets is None or inventory is None else current_assets - inventory
             quick_ratio = self._calculate_ratio(quick_assets, current_liabilities)
-            quick_ratio_benchmark = self._get_benchmark("Quick Ratio")
-            recommendation = self._get_recommendation(quick_ratio, quick_ratio_benchmark)
-
+            benchmark_range = self._get_benchmark("Quick Ratio")
+            comparison = self._compare_to_benchmark(quick_ratio, benchmark_range)
+            recommendation = self._get_recommendation_by_range(quick_ratio, benchmark_range)
             return {
-                "Quick Ratio": round(quick_ratio, 2) if quick_ratio is not None else "N/A",
-                "Industry Benchmark": round(quick_ratio_benchmark, 2) if quick_ratio_benchmark else "N/A",
-                "Comparison": (
-                    "Above Benchmark" if quick_ratio is not None and quick_ratio > quick_ratio_benchmark else
-                    "Below Benchmark" if quick_ratio is not None and quick_ratio < quick_ratio_benchmark else
-                    "At Benchmark" if quick_ratio is not None and quick_ratio == quick_ratio_benchmark else
-                    "Benchmark Unavailable"
-                ),
+                "Quick Ratio": round(quick_ratio, 2) if quick_ratio is not None else None,
+                "Industry Benchmark": benchmark_range,
+                "Comparison": comparison,
                 "Recommendation": recommendation
             }
         except Exception as e:
-            return {"error": f"Error calculating Quick Ratio: {str(e)}"}
+            return {"Quick Ratio": None, "Industry Benchmark": None, "Comparison": f"Error calculating Quick Ratio: {str(e)}", "Recommendation": f"Error calculating Quick Ratio: {str(e)}"}
 
     def fetch_all_ratios(self):
         """Fetch and return all liquidity ratios with benchmarks and recommendations."""
