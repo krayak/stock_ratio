@@ -1,10 +1,9 @@
-# Financial Ratios Analysis
-
-This project provides a structured approach to analyzing financial ratios for a company, offering detailed insights into valuation, profitability, liquidity, debt, and efficiency metrics. The analysis is summarized into recommendations for investment decisions based on industry benchmarks and the company’s performance.
+# Financial Ratios Analyser
 
 ---
 
 ## **Overview**
+This project provides a structured approach to analyzing financial ratios for a company, offering detailed insights into valuation, profitability, liquidity, debt, and efficiency metrics. The analysis is summarized into recommendations for investment decisions based on industry benchmarks and the company’s performance.
 
 This project is a Python module designed to analyze equities using various financial ratios. It focuses on valuation, efficiency, profitability, and debt metrics to provide actionable investment recommendations. The module can be installed via `setup.py` and accessed through a command-line interface (CLI).
 
@@ -20,46 +19,6 @@ Each category contains multiple metrics that are evaluated against industry benc
 
 **Special Note:**  
 This framework is designed to assist in the quantitative analysis of various financial ratios and provides a consolidated output to streamline decision-making. However, it is imperative to validate the generated output and avoid blindly following the recommendations. Users should perform initial analysis and cross-check with other relevant data to ensure the soundness of investment decisions.
-
-Below is an example of the framework's console output, showcasing metrics and recommendations:
-[Sample Output: Valuation, Profitability, Liquidity, Debt, and Efficiency Ratios]
-
-Valuation Ratios:
-  - P/E Ratio: Above Benchmark, Recommendation: Sell
-  - P/B Ratio: Within Benchmark, Recommendation: Hold
-  - P/S Ratio: Below Benchmark, Recommendation: Buy
-  ...
-
-Profitability Ratios:
-  - Gross Profit Margin: Within Benchmark, Recommendation: Hold
-  - ROE: Below Benchmark, Recommendation: Buy
-  ...
-
-Liquidity Ratios:
-  - Current Ratio: Within Benchmark, Recommendation: Hold
-  - Quick Ratio: Within Benchmark, Recommendation: Hold
-  ...
-
-Debt Ratios:
-  - Debt-to-Equity Ratio: Below Benchmark, Recommendation: Buy
-  ...
-
-Efficiency Ratios:
-  - Asset Turnover Ratio: Within Benchmark, Recommendation: Hold
-  - Inventory Turnover Ratio: Within Benchmark, Recommendation: Hold
-
-Summary:
-  - Ticker: RELIANCE.NS
-  - Overall Score: 77.27%
-  - Overall Recommendation: Buy
-
-Category Recommendations:
-  - Valuation: Buy
-  - Profitability: Sell
-  - Liquidity: Sell
-  - Debt: Sell
-  - Efficiency: Sell
-
 
 ---
 
@@ -195,8 +154,7 @@ The data is organized into a structured JSON format. Below is a breakdown of the
 
 ## **License**
 
-This project is open-source under the MIT License. See the LICENSE file for more details.
-
+This project is open-source under the MIT License.
 ---
 
 ## **Contact**
