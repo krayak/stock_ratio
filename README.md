@@ -1,13 +1,13 @@
+
 # Financial Ratios Analyser
 
 ---
 
 ## **Overview**
-This project provides a structured approach to analyzing financial ratios for a company, offering detailed insights into valuation, profitability, liquidity, debt, and efficiency metrics. The analysis is summarized into recommendations for investment decisions based on industry benchmarks and the company’s performance.
 
-This project is a Python module designed to analyze equities using various financial ratios. It focuses on valuation, efficiency, profitability, and debt metrics to provide actionable investment recommendations. The module can be installed via `setup.py` and accessed through a command-line interface (CLI).
+This Python module analyzes financial ratios for companies, offering insights into valuation, profitability, liquidity, debt, and efficiency. It provides actionable investment recommendations based on these metrics, compared against industry benchmarks.
 
-The analysis covers the following categories of financial ratios:
+The analysis includes:
 
 - **Valuation Ratios**
 - **Profitability Ratios**
@@ -15,149 +15,141 @@ The analysis covers the following categories of financial ratios:
 - **Debt Ratios**
 - **Efficiency Ratios**
 
-Each category contains multiple metrics that are evaluated against industry benchmarks to provide actionable recommendations.
-
-**Special Note:**  
-This framework is designed to assist in the quantitative analysis of various financial ratios and provides a consolidated output to streamline decision-making. However, it is imperative to validate the generated output and avoid blindly following the recommendations. Users should perform initial analysis and cross-check with other relevant data to ensure the soundness of investment decisions.
+This tool aims to assist in quantitative financial analysis but should not be solely relied upon for investment decisions. Cross-check with other data sources for comprehensive analysis.
 
 ---
 
 ## **Features**
 
-1. **Detailed Ratio Analysis**: Each metric includes:
-   - Comparison against industry benchmarks.
-   - Recommendations based on the analysis.
+- **Detailed Ratio Analysis**: Metrics compared to industry benchmarks with recommendations.
+- **Summary**: Overall company score and investment recommendation (e.g., Buy, Hold, Sell).
+- **Category Recommendations**: High-level recommendations for each ratio category.
+- **Quantitative Analysis**:
+  - **Valuation**: P/E, P/B, P/S, PEG Ratio, Dividend Yield & Payout
+  - **Efficiency**: Asset & Inventory Turnover
+  - **Profitability**: ROE, ROA, Net & Gross Profit Margin
+  - **Debt**: Debt-to-Equity, Interest Coverage
+  - **Liquidity**: Current & Quick Ratios
+- **CLI**: Input stock tickers and receive ratio analysis and recommendations.
+- **Custom Recommendations**: "Buy," "Hold," or "Sell" suggestions based on financial ratios and benchmarks.
+- **Configurable Benchmarks**: Central management of benchmarks via configuration files.
+- **Lightweight**: Uses `yfinance` for data fetching.
 
-2. **Summary**:
-   - Overall score for the company.
-   - Final investment recommendation (e.g., Buy, Hold, Sell).
+---
 
-3. **Category Recommendations**:
-   - High-level recommendations for each category based on the metrics.
+## **Weights of Each Ratio**
 
-4. **Quantitative Ratio Analysis**:
-   - **Valuation Ratios**: Price-to-Earnings (P/E), Price-to-Book (P/B), Price-to-Sell (P/S), PEG Ratio, Divident Yield, Dividend Payout
-   - **Efficiency Ratios**: Asset Turnover, Inventory Turnover
-   - **Profitability Ratios**: Return on Equity (ROE), Return of Asset (ROA), Net Profit Margin, Gross Profit Margin
-   - **Debt Ratios**: Debt-to-Equity, Interest Coverage
-   - **Liquidity Ratios**: Current Ratio, Quick Ratio
-5. **Command-Line Interface (CLI)**: Allows users to input stock ticker symbols and receive ratio calculations and recommendations.
-6. **Custom Recommendations**: Compares financial ratios against industry benchmarks to suggest "Buy," "Hold," or "Sell."
-7. **Configurable Benchmarks**: Benchmarks for each ratio are stored and managed centrally using a configuration file structure.
-8. **Lightweight Dependencies**: Uses `yfinance` for financial data fetching.
+The following are the weights assigned to each financial ratio for the final recommendation calculation:
+
+- **Valuation Ratios**:
+  - **P/E Ratio**: 0.25
+  - **PEG Ratio**: 0.1
+  - **P/S Ratio**: 0.2
+  - **P/B Ratio**: 0.25
+  - **Dividend Yield**: 0.1
+  - **Dividend Payout**: 0.1
+
+- **Profitability Ratios**:
+  - **ROA**: 0.3
+  - **ROE**: 0.4
+  - **Net Profit Margin**: 0.3
+
+- **Liquidity Ratios**:
+  - **Current Ratio**: 0.5
+  - **Quick Ratio**: 0.5
+
+- **Debt Ratios**:
+  - **Debt-to-Equity Ratio**: 0.5
+  - **Interest Coverage Ratio**: 0.5
+
+- **Efficiency Ratios**:
+  - **Asset Turnover Ratio**: 1.0
+
+These weights determine how much each ratio contributes to the final investment recommendation. The recommendation engine calculates a weighted score for each category and provides a consolidated recommendation for the company.
+
+---
+
+## **Stock Ticker Format**
+
+- **For Indian Stocks**:  
+  - When analyzing Indian stocks, please append `.NS` (for National Stock Exchange) or `.BS` (for Bombay Stock Exchange) to the ticker symbol.  
+  - **Example**: `RELIANCE.NS`, `TATAMOTORS.BS`
+  
+- **For USA Stocks**:  
+  - For US-based stocks, only the ticker symbol is needed (e.g., `AAPL`, `GOOGL`).  
+  - It is recommended to verify the ticker symbol via Yahoo Finance for accuracy.
+
+Note: The industry benchmark is set as per Indian market standards. If you are performing analysis for stocks outside India, you may need to adjust the benchmarks accordingly for the specific country.
+
+---
 
 ## **Configuration**
-The config folder stores all benchmark details and global settings in JSON files. Each ratio category has its own configuration file for flexibility and modularity.
+
+Benchmark data and global settings are stored in the `config` folder as JSON files, with separate files for each ratio category.
 
 ---
 
 ## **JSON Structure**
-The data is organized into a structured JSON format. Below is a breakdown of the main sections:
 
-### **1. Valuation Ratios Output**
+### **Example Outputs**
 
-```json
-{
-    "Metric": "P/E Ratio",
-    "Forward P/E": "19.5253",
-    "Comparison": "Above Benchmark",
-    "Trailing P/E": "24.750742"
-}
-```
+- **Valuation Ratio (P/E)**:
+  ```json
+  {
+      "Metric": "P/E Ratio",
+      "Forward P/E": "19.5253",
+      "Comparison": "Above Benchmark",
+      "Trailing P/E": "24.750742"
+  }
+  ```
 
-### **2. Profitability Ratios Output**
+- **Profitability Ratio (ROA)**:
+  ```json
+  {
+      "Metric": "ROA",
+      "Comparison": "Within Benchmark",
+      "Industry Benchmark (%)": "(4.0, 8.0)",
+      "ROA (%)": 4.14,
+      "Recommendation": "Hold"
+  }
+  ```
 
-```json
-{
-    "Metric": "ROA",
-    "Comparison": "Within Benchmark",
-    "Industry Benchmark (%)": "(4.0, 8.0)",
-    "ROA (%)": 4.14,
-    "Recommendation": "Hold"
-}
-```
-
-### **3. Liquidity Ratios Output**
-
-```json
-{
-    "Metric": "Current Ratio",
-    "Comparison": "Within Benchmark",
-    "Current Ratio": 1.18,
-    "Industry Benchmark": "(0.8, 1.4)",
-    "Recommendation": "Hold"
-}
-```
-
-### **4. Debt Ratios Output**
-
-```json
-{
-    "Metric": "Debt-to-Equity Ratio",
-    "Comparison": "Below Benchmark",
-    "Debt-to-Equity Ratio": 0.37,
-    "Industry Benchmark": "(0.8, 1.8)",
-    "Recommendation": "Buy"
-}
-```
-
-### **5. Efficiency Ratios Output**
-
-```json
-{
-    "Metric": "Asset Turnover Ratio",
-    "Asset Turnover Ratio": 0.54,
-    "Comparison": "Within Benchmark",
-    "Industry Benchmark": "(0.4, 0.8)",
-    "Recommendation": "Hold"
-}
-```
-
-### **6. Summary**
-
-```json
-{
-    "Ticker": "RELIANCE.NS",
-    "Overall Score": 77.27272727272727,
-    "Overall Recommendation": "Buy"
-}
-```
-
-### **7. Category Recommendations**
-
-```json
-{
-    "Valuation": "Buy",
-    "Profitability": "Sell",
-    "Liquidity": "Sell",
-    "Debt": "Sell",
-    "Efficiency": "Sell"
-}
-```
+- **Summary**:
+  ```json
+  {
+      "Ticker": "RELIANCE.NS",
+      "Overall Score": 77.27,
+      "Overall Recommendation": "Buy"
+  }
+  ```
 
 ---
-## Installation
+
+## **Installation**
 
 1. Clone the repository:
    ```bash
    git clone git@github.com:krayak/stock_ratio.git
    cd stock_ratio
    pip install -e .
-   stock-ratios RELIANCE.NS ## Fetch and perform stock analysis on Reliance
+   stock-ratios RELIANCE.NS
+   ```
+
 ---
 
 ## **Dependencies**
 
 - Python 3.10+
-- Libraries: None required, but recommended for advanced usage:
-  - `yfinance`: For data retrieval.
+- `yfinance` for financial data retrieval.
+
+---
 
 ## **License**
 
-This project is open-source under the MIT License.
+MIT License.
+
 ---
 
 ## **Contact**
 
-For questions or feedback, please reach out to [structbinary<sandeepmahto4@gmail.com>].
-
+For feedback or questions, contact [sandeepmahto4@gmail.com].
