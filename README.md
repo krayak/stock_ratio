@@ -18,6 +18,49 @@ The analysis covers the following categories of financial ratios:
 
 Each category contains multiple metrics that are evaluated against industry benchmarks to provide actionable recommendations.
 
+**Special Note:**  
+This framework is designed to assist in the quantitative analysis of various financial ratios and provides a consolidated output to streamline decision-making. However, it is imperative to validate the generated output and avoid blindly following the recommendations. Users should perform initial analysis and cross-check with other relevant data to ensure the soundness of investment decisions.
+
+Below is an example of the framework's console output, showcasing metrics and recommendations:
+[Sample Output: Valuation, Profitability, Liquidity, Debt, and Efficiency Ratios]
+
+Valuation Ratios:
+  - P/E Ratio: Above Benchmark, Recommendation: Sell
+  - P/B Ratio: Within Benchmark, Recommendation: Hold
+  - P/S Ratio: Below Benchmark, Recommendation: Buy
+  ...
+
+Profitability Ratios:
+  - Gross Profit Margin: Within Benchmark, Recommendation: Hold
+  - ROE: Below Benchmark, Recommendation: Buy
+  ...
+
+Liquidity Ratios:
+  - Current Ratio: Within Benchmark, Recommendation: Hold
+  - Quick Ratio: Within Benchmark, Recommendation: Hold
+  ...
+
+Debt Ratios:
+  - Debt-to-Equity Ratio: Below Benchmark, Recommendation: Buy
+  ...
+
+Efficiency Ratios:
+  - Asset Turnover Ratio: Within Benchmark, Recommendation: Hold
+  - Inventory Turnover Ratio: Within Benchmark, Recommendation: Hold
+
+Summary:
+  - Ticker: RELIANCE.NS
+  - Overall Score: 77.27%
+  - Overall Recommendation: Buy
+
+Category Recommendations:
+  - Valuation: Buy
+  - Profitability: Sell
+  - Liquidity: Sell
+  - Debt: Sell
+  - Efficiency: Sell
+
+
 ---
 
 ## **Features**
@@ -44,10 +87,12 @@ Each category contains multiple metrics that are evaluated against industry benc
 7. **Configurable Benchmarks**: Benchmarks for each ratio are stored and managed centrally using a configuration file structure.
 8. **Lightweight Dependencies**: Uses `yfinance` for financial data fetching.
 
+## **Configuration**
+The config folder stores all benchmark details and global settings in JSON files. Each ratio category has its own configuration file for flexibility and modularity.
+
 ---
 
 ## **JSON Structure**
-
 The data is organized into a structured JSON format. Below is a breakdown of the main sections:
 
 ### **1. Valuation Ratios Output**
@@ -136,9 +181,10 @@ The data is organized into a structured JSON format. Below is a breakdown of the
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/stock_ratios.git
-   cd stock_ratios
-
+   git clone git@github.com:krayak/stock_ratio.git
+   cd stock_ratio
+   pip install -e .
+   stock-ratios RELIANCE.NS ## Fetch and perform stock analysis on Reliance
 ---
 
 ## **Dependencies**
@@ -146,24 +192,6 @@ The data is organized into a structured JSON format. Below is a breakdown of the
 - Python 3.10+
 - Libraries: None required, but recommended for advanced usage:
   - `yfinance`: For data retrieval.
-
----
-
-## **Future Enhancements**
-
-1. **Integration with Financial APIs**:
-   - Fetch real-time data for metrics.
-
-2. **Visualization**:
-   - Add graphical representations for better insights.
-
-3. **Custom Benchmarks**:
-   - Allow users to set their benchmarks.
-
-4. **Industry-Specific Analysis**:
-   - Tailored recommendations for different sectors.
-
----
 
 ## **License**
 
