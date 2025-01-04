@@ -51,19 +51,10 @@ class StockRatios:
 
         return {
             "ticker": self.ticker,
-            "analysis": analysis_results,
+            "analysis_result": analysis_results,
             "overall_score": overall_score,
             "overall_recommendation": overall_recommendation,
             "category_recommendations": category_recommendations
         }
 
-    
-    # def fetch_all_ratios(self):
-    #     return {
-    #         "Valuation": self.get_valuation_ratios(),
-    #         "Profitability": self.get_profitability_ratios(),
-    #         "Liquidity": self.get_liquidity_ratios(),
-    #         "Debt" : self.get_debt_ratios(),
-    #         "Efficiency": self.get_efficiency_ratios()
-    #     }
 

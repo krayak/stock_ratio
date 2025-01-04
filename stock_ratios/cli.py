@@ -2,14 +2,62 @@ import sys
 import json
 import argparse
 from stock_ratios.core import StockRatios
+from rich.console import Console
+from rich.table import Table
 
 def get_ratios(ticker):
     stock_ratios = StockRatios(ticker)
     ratios = stock_ratios.fetch_all_ratios()
     
-    # Output the ratios to the console
-    print(json.dumps(ratios, indent=2))
+    console = Console()
 
+    # Displaying the detailed ratio tables
+    for category, data in ratios["analysis_result"].items():
+        table = Table(title=f"{category} Ratios")
+        
+        # Collect all possible headers dynamically across all metrics
+        all_headers = set()
+        for values in data.values():
+            all_headers.update(values.keys())
+        
+        # Sort headers to ensure consistent order
+        all_headers = sorted(all_headers)
+        headers = ["Metric"] + list(all_headers)
+        
+        # Add columns to the table
+        table.add_column("Metric", style="cyan", no_wrap=True)
+        for header in headers[1:]:
+            table.add_column(header, style="green")
+        
+        # Add rows for each metric
+        for metric, values in data.items():
+            row = [metric] + [str(values.get(header, "")) for header in headers[1:]]
+            table.add_row(*row)
+        
+        # Print the table for the current category
+        console.print(table)
+    
+    # Displaying the summary table
+    summary_table = Table(title="Summary")
+    summary_table.add_column("Ticker", style="cyan")
+    summary_table.add_column("Overall Score", style="magenta")
+    summary_table.add_column("Overall Recommendation", style="green")
+    summary_table.add_row(
+        ratios["ticker"],
+        str(ratios["overall_score"]),
+        ratios["overall_recommendation"]
+    )
+    console.print(summary_table)
+
+    # Displaying the category recommendations
+    recommendation_table = Table(title="Category Recommendations")
+    recommendation_table.add_column("Category", style="cyan")
+    recommendation_table.add_column("Recommendation", style="green")
+
+    for category, recommendation in ratios["category_recommendations"].items():
+        recommendation_table.add_row(category, recommendation)
+
+    console.print(recommendation_table)
 
 # def summarize_stock_ratios(ticker):
 #     """

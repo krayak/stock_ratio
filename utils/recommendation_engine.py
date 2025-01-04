@@ -99,6 +99,8 @@ class RecommendationEngine:
         self.thresholds.update(new_thresholds)
 
     def get_category_recommendation(self, category_data, category_name):
-        """Gets the category specific recommendation based on the score"""
+        """Gets the category specific recommendation based on the WEIGHTED score."""
+        if not category_data or category_name not in self.weights:  # Handle missing category data
+            return "Data Unavailable"
         category_score = self.calculate_category_score(category_data, category_name)
         return self.get_overall_recommendation(category_score)
